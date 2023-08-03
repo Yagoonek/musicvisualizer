@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Wizualizacja dźwięku z pliku MP3</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+        input[type="file"] {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Wizualizacja dźwięku z pliku MP3</h1>
+    <canvas id="visualizer" width="400" height="200"></canvas>
+    <input type="file" id="audio-file" accept=".mp3" />
+    <audio id="audio-element" controls></audio>
+    <script>
+        const canvas = document.getElementById("visualizer");
+        const canvasCtx = canvas.getContext("2d");
+        const audioElement = document.getElementById("audio-element");
+        const audioFileInput = document.getElementById("audio-file");
+
+        audioFileInput.addEventListener("change", function (e) {
+            const file = e.target.files[0];
+            const objectURL = URL.createObjectURL(file);
+            audioElement.src = objectURL;
+            audioElement.play();
+        });
+
+        audioElement.addEventListener("play", function () {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const analyser = audioContext.createAnalyser();
+            const source = audioContext.createMediaElementSource(audioElement);
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
+            analyser.fftSize = 256;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function draw() {
+                analyser.getByteFrequencyData(dataArray);
+                canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+                const barWidth = (canvas.width / bufferLength) * 2.5;
+                let posX = 0;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = dataArray[i];
+                    canvasCtx.fillStyle = `rgb(${barHeight + 100}, 50, 50)`;
+                    canvasCtx.fillRect(posX, canvas.height - barHeight / 2, barWidth, barHeight / 2);
+                    posX += barWidth + 1;
+                }
+
+                requestAnimationFrame(draw);
+            }
+
+            draw();
+        });
+
+        audioElement.addEventListener("ended", function () {
+            canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+    </script>
+</body>
+</html>
